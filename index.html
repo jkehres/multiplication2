@@ -10,15 +10,26 @@
         button {
             font-family: monospace;
             font-size: 36px;
-            padding: 10px;
+            /* padding: 10px; */
             margin: 5px;
         }
-        #numpad {
-            display: flex;
-            margin-top: 50px;
+        .num-button {
+            height: 60px;
+            width: 60px;
+        }
+        .del-button {
+            height: 60px;
+            width: 130px;
         }
         .screen {
             display: none;
+        }
+        #numpad {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 50px;
+            padding: 0px;
+            width: 210px;
         }
     </style>
     <script>
@@ -121,17 +132,17 @@
         <div id="row3"></div>
 
         <div id="numpad">
-            <button onclick="handleNumPadInput('1')">1</button>
-            <button onclick="handleNumPadInput('2')">2</button>
-            <button onclick="handleNumPadInput('3')">3</button>
-            <button onclick="handleNumPadInput('4')">4</button>
-            <button onclick="handleNumPadInput('5')">5</button>
-            <button onclick="handleNumPadInput('6')">6</button>
-            <button onclick="handleNumPadInput('7')">7</button>
-            <button onclick="handleNumPadInput('8')">8</button>
-            <button onclick="handleNumPadInput('9')">9</button>
-            <button onclick="handleNumPadInput('0')">0</button>
-            <button onclick="handleNumPadInput('Backspace')">DEL</button>
+            <button class="num-button" onclick="handleNumPadInput('7')">7</button>
+            <button class="num-button" onclick="handleNumPadInput('8')">8</button>
+            <button class="num-button" onclick="handleNumPadInput('9')">9</button>
+            <button class="num-button" onclick="handleNumPadInput('4')">4</button>
+            <button class="num-button" onclick="handleNumPadInput('5')">5</button>
+            <button class="num-button" onclick="handleNumPadInput('6')">6</button>
+            <button class="num-button" onclick="handleNumPadInput('1')">1</button>
+            <button class="num-button" onclick="handleNumPadInput('2')">2</button>
+            <button class="num-button" onclick="handleNumPadInput('3')">3</button>
+            <button class="num-button" onclick="handleNumPadInput('0')">0</button>
+            <button class="del-button" onclick="handleNumPadInput('Backspace')">DEL</button>
         </div>
     </div>
 
