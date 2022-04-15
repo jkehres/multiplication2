@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multiplication</title>
+    <style>
+        body {
+            font-family: monospace;
+            font-size: 36px;
+        }
+        button {
+            font-family: monospace;
+            font-size: 36px;
+            padding: 10px;
+            margin: 5px;
+        }
+        #numpad {
+            display: flex;
+            margin-top: 50px;
+        }
+        .screen {
+            display: none;
+        }
+    </style>
+    <script>
+        // TODO: Shuffled table instead of random
+        // TODO: Scoring = sum(time to solve)
+
+        const STRING_WIDTH = 4;
+        const ANSWER_DURATION = 400;
+
+        let num1 = null;
+        let num2 = null;
+        let input = '';
+
+        function init() {
+            const separator = document.getElementById('separator');
+            separator.textContent = '-'.repeat(STRING_WIDTH);
+
+            setVisible('start-screen', true);
+        }
+
+        function fixedWidthString(s, width) {
+            const padding = width - s.length;
+            return "\u00A0".repeat(padding) + s;
+        }
+
+        function renderRow({id, value, prefix = '', color = 'black'}) {
+            const element = document.getElementById(id);
+            element.textContent = prefix + fixedWidthString(value, STRING_WIDTH - prefix.length);
+            element.style.color = color;
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        function next() {
+            num1 = randInt(1, 12);
+            num2 = randInt(1, 12);
+            input = '';
+
+            renderRow({ id: 'row1', value: num1.toString() });
+            renderRow({ id: 'row2', value: num2.toString(), prefix: 'x' });
+            renderRow({ id: 'row3', value: input });
+        }
+
+        function handleNumPadInput(id) {
+            if ((row3.length === 0 && id === 'Backspace') || (row3.length === STRING_WIDTH && id !== 'Backspace')) {
+                return;
+            }
+
+            if (id === 'Backspace') {
+                input = input.slice(0, -1);
+            } else {
+                input = parseInt(input + id.toString()).toString();
+            }
+
+            const answer = num1 * num2;
+            const solved = answer.toString() === input;
+
+            const color = solved ? 'lime' : 'black';
+            renderRow({ id: 'row3', value: input, color });
+
+            if (solved) {
+                setTimeout(next, ANSWER_DURATION);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (('0' <= event.key && event.key <= '9') || event.key === 'Backspace') {
+                handleNumPadInput(event.key)
+            }
+        }
+
+        function setVisible(id, visible) {
+            const element = document.getElementById(id);
+            element.style.display = (visible) ? 'initial' : 'none';
+        }
+
+        function switchToRunningScreen() {
+            next();
+            setVisible('start-screen', false);
+            setVisible('running-screen', true);
+        }
+
+        function switchToEndScreen() {
+            setVisible('running-screen', false);
+            setVisible('end-screen', true);
+        }
+    </script>
+</head>
+<body onload="init()" onkeyup="handleKeyPress(event)">
+    <div id="start-screen" class="screen">
+        <button onclick="switchToRunningScreen()">Start</button>
+    </div>
+
+    <div id="running-screen" class="screen">
+        <div id="row1"></div>
+        <div id="row2"></div>
+        <div id="separator"></div>
+        <div id="row3"></div>
+
+        <div id="numpad">
+            <button onclick="handleNumPadInput('1')">1</button>
+            <button onclick="handleNumPadInput('2')">2</button>
+            <button onclick="handleNumPadInput('3')">3</button>
+            <button onclick="handleNumPadInput('4')">4</button>
+            <button onclick="handleNumPadInput('5')">5</button>
+            <button onclick="handleNumPadInput('6')">6</button>
+            <button onclick="handleNumPadInput('7')">7</button>
+            <button onclick="handleNumPadInput('8')">8</button>
+            <button onclick="handleNumPadInput('9')">9</button>
+            <button onclick="handleNumPadInput('0')">0</button>
+            <button onclick="handleNumPadInput('Backspace')">DEL</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="screen">
+        <p>TODO</p>
+    </div>
+</body>
+</html>
