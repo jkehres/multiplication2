@@ -10,8 +10,12 @@
         button {
             font-family: monospace;
             font-size: 36px;
-            /* padding: 10px; */
             margin: 5px;
+        }
+        input {
+            font-family: monospace;
+            font-size: 36px;
+            width: 70px;
         }
         .num-button {
             height: 60px;
@@ -33,32 +37,48 @@
         }
     </style>
     <script>
-        // TODO: Shuffled table instead of random
-        // TODO: Scoring = sum(time to solve)
-
         const STRING_WIDTH = 4;
         const ANSWER_DURATION = 400;
 
-        let num1 = null;
-        let num2 = null;
+        const questions = [];
+        let questionIndex = -1;
+        let questionStart = null;
         let input = '';
 
         function init() {
-            const separator = document.getElementById('separator');
-            separator.textContent = '-'.repeat(STRING_WIDTH);
-
+            renderSeparator();
             setVisible('start-screen', true);
         }
 
         function fixedWidthString(s, width) {
-            const padding = width - s.length;
-            return "\u00A0".repeat(padding) + s;
+            return s.padStart(width, '\u00A0');
+        }
+
+        function renderSeparator() {
+            const separatorElement = document.getElementById('separator');
+            separatorElement.textContent = '-'.repeat(STRING_WIDTH);
         }
 
         function renderRow({id, value, prefix = '', color = 'black'}) {
-            const element = document.getElementById(id);
-            element.textContent = prefix + fixedWidthString(value, STRING_WIDTH - prefix.length);
-            element.style.color = color;
+            const rowElement = document.getElementById(id);
+            rowElement.textContent = prefix + fixedWidthString(value, STRING_WIDTH - prefix.length);
+            rowElement.style.color = color;
+        }
+
+        function renderProgress() {
+            const progressElement = document.getElementById('progress');
+            progressElement.max = questions.length;
+            progressElement.value = questionIndex;
+        }
+
+        function renderScore() {
+            const totalTimeToSolve = questions.reduce((total, q) => total + q.timeToSolve, 0);
+            const scoreEleemnt = document.getElementById('score');
+            scoreEleemnt.textContent = `${questions.length} questions in ${formatDuration(totalTimeToSolve)}`;
+        }
+
+        function renderHeatmap() {
+
         }
 
         function randInt(min, max) {
@@ -66,13 +86,19 @@
         }
 
         function next() {
-            num1 = randInt(1, 12);
-            num2 = randInt(1, 12);
-            input = '';
+            if (questionIndex < questions.length - 1) {
+                input = '';
+                q = questions[++questionIndex];
+                
+                renderProgress();
+                renderRow({ id: 'row1', value: q.num1.toString() });
+                renderRow({ id: 'row2', value: q.num2.toString(), prefix: 'x' });
+                renderRow({ id: 'row3', value: input });
 
-            renderRow({ id: 'row1', value: num1.toString() });
-            renderRow({ id: 'row2', value: num2.toString(), prefix: 'x' });
-            renderRow({ id: 'row3', value: input });
+                questionStart = Date.now();
+            } else {
+                switchToEndScreen();
+            }
         }
 
         function handleNumPadInput(id) {
@@ -86,13 +112,15 @@
                 input = parseInt(input + id.toString()).toString();
             }
 
-            const answer = num1 * num2;
+            q = questions[questionIndex];
+            const answer = q.num1 * q.num2;
             const solved = answer.toString() === input;
 
             const color = solved ? 'lime' : 'black';
             renderRow({ id: 'row3', value: input, color });
 
             if (solved) {
+                q.timeToSolve = Date.now() - questionStart;
                 setTimeout(next, ANSWER_DURATION);
             }
         }
@@ -109,23 +137,84 @@
         }
 
         function switchToRunningScreen() {
+            const minElement = document.getElementById('min');
+            const maxElement = document.getElementById('max');
+            if (min.value > max.value) {
+                alert('ERROR: Min value > max value')
+                return;
+            }
+
+            generateQuestions(min.value, max.value);
             next();
+
             setVisible('start-screen', false);
             setVisible('running-screen', true);
         }
 
         function switchToEndScreen() {
+            console.log(JSON.stringify(questions));
+
+            renderScore();
+            renderHeatmap();
             setVisible('running-screen', false);
             setVisible('end-screen', true);
+        }
+
+        function shuffle(array) {
+            for (let i = 0; i < array.length; i++) {
+                const swapIndex1 = randInt(0, array.length - 1);
+                const swapIndex2 = randInt(0, array.length - 1);
+
+                const temp = array[swapIndex1];
+                array[swapIndex1] = array[swapIndex2];
+                array[swapIndex2] = temp;
+            }
+        }
+
+        function generateQuestions(min, max) {
+            for (let i = min; i <= max; i++) {
+                for (let j = min; j <= max; j++) {
+                    questions.push({
+                        num1: i,
+                        num2: j,
+                        timeToSolve: null
+                    });
+                }
+            }
+            shuffle(questions);
+        }
+
+        function formatDuration(duration) {
+            const minutes = Math.floor(duration / 60000);
+            const seconds = Math.floor((duration % 60000) / 1000);
+            const milliseonds = duration % 1000;
+
+            const minutesString = minutes.toString();
+            const secondsString = seconds.toString().padStart(2, '0');
+            const millisecondsString = milliseonds.toString().padStart(3, '0');
+
+            return `${minutesString}:${secondsString}.${millisecondsString}`;
         }
     </script>
 </head>
 <body onload="init()" onkeyup="handleKeyPress(event)">
     <div id="start-screen" class="screen">
-        <button onclick="switchToRunningScreen()">Start</button>
+        <div>
+            <label for="min">Min</label>
+            <input id="min" type="number" value="1" min="0" max="99"/>
+        </div>
+        <div>
+            <label for="min">Max</label>
+            <input id="max" type="number" value="12" min="0" max="99"/>
+        </div>
+        <div>
+            <button onclick="switchToRunningScreen()">Start</button>
+        </div>
     </div>
 
     <div id="running-screen" class="screen">
+        <progress id="progress" value="0"></progress>
+
         <div id="row1"></div>
         <div id="row2"></div>
         <div id="separator"></div>
@@ -147,7 +236,7 @@
     </div>
 
     <div id="end-screen" class="screen">
-        <p>TODO</p>
+        <p id="score"></p>
     </div>
 </body>
 </html>
