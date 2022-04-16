@@ -17,6 +17,18 @@
             font-size: 36px;
             width: 70px;
         }
+        table, tr, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            font-size: 24px;
+            padding: 0px;
+            margin: 0px;
+        }
+        td {
+            width: 35px;
+            height: 35px;
+            text-align: center;
+        }
         .num-button {
             height: 60px;
             width: 60px;
@@ -38,7 +50,9 @@
     </style>
     <script>
         const STRING_WIDTH = 4;
-        const ANSWER_DURATION = 400;
+        const SHOW_ANSWER_DURATION = 400;
+        const HEATMAP_MIN_DURATION = 1000;
+        const HEATMAP_MAX_DURATION = 5000;
 
         const questions = [];
         let questionIndex = -1;
@@ -55,30 +69,51 @@
         }
 
         function renderSeparator() {
-            const separatorElement = document.getElementById('separator');
-            separatorElement.textContent = '-'.repeat(STRING_WIDTH);
+            const element = document.getElementById('separator');
+            element.textContent = '-'.repeat(STRING_WIDTH);
         }
 
         function renderRow({id, value, prefix = '', color = 'black'}) {
-            const rowElement = document.getElementById(id);
-            rowElement.textContent = prefix + fixedWidthString(value, STRING_WIDTH - prefix.length);
-            rowElement.style.color = color;
+            const element = document.getElementById(id);
+            element.textContent = prefix + fixedWidthString(value, STRING_WIDTH - prefix.length);
+            element.style.color = color;
         }
 
         function renderProgress() {
-            const progressElement = document.getElementById('progress');
-            progressElement.max = questions.length;
-            progressElement.value = questionIndex;
+            const element = document.getElementById('progress');
+            element.max = questions.length;
+            element.value = questionIndex;
         }
 
-        function renderScore() {
-            const totalTimeToSolve = questions.reduce((total, q) => total + q.timeToSolve, 0);
-            const scoreEleemnt = document.getElementById('score');
-            scoreEleemnt.textContent = `${questions.length} questions in ${formatDuration(totalTimeToSolve)}`;
+        function renderQuestionCount() {
+            const element = document.getElementById('question-count');
+            element.textContent = `Questions: ${questions.length}`;
+        }
+
+        function renderTotalDuration() {
+            const element = document.getElementById('total-duration');
+            const totalDuration = questions.reduce((total, q) => total + q.duration, 0);
+            element.textContent = `Total: ${formatDuration(totalDuration)}`;
+        }
+
+        function renderFastestDuration() {
+            const element = document.getElementById('fastest-duration');
+            const minDuration = questions.reduce((min, q) => Math.min(min, q.duration), Number.MAX_VALUE);
+            element.textContent = `Fastest: ${formatDuration(minDuration)}`;
+        }
+
+        function renderSlowestDuration() {
+            const element = document.getElementById('slowest-duration');
+            const maxDuration = questions.reduce((max, q) => Math.max(max, q.duration), 0);
+            element.textContent = `Slowest: ${formatDuration(maxDuration)}`;
         }
 
         function renderHeatmap() {
-
+            const tableElement = document.getElementById('heatmap');
+            questions.forEach(q => {
+                const cellElement = tableElement.rows[q.num1].cells[q.num2];
+                cellElement.style.backgroundColor = durationToColor(q.duration);
+            });
         }
 
         function randInt(min, max) {
@@ -102,7 +137,9 @@
         }
 
         function handleNumPadInput(id) {
-            if ((row3.length === 0 && id === 'Backspace') || (row3.length === STRING_WIDTH && id !== 'Backspace')) {
+            if (questionIndex === -1 || (row3.length === 0 && id === 'Backspace') || 
+                (row3.length === STRING_WIDTH && id !== 'Backspace')) {
+                
                 return;
             }
 
@@ -120,8 +157,8 @@
             renderRow({ id: 'row3', value: input, color });
 
             if (solved) {
-                q.timeToSolve = Date.now() - questionStart;
-                setTimeout(next, ANSWER_DURATION);
+                q.duration = Date.now() - questionStart;
+                setTimeout(next, SHOW_ANSWER_DURATION);
             }
         }
 
@@ -152,10 +189,15 @@
         }
 
         function switchToEndScreen() {
+            questionIndex = -1;
             console.log(JSON.stringify(questions));
 
-            renderScore();
+            renderQuestionCount();
+            renderTotalDuration();
+            renderFastestDuration();
+            renderSlowestDuration()
             renderHeatmap();
+
             setVisible('running-screen', false);
             setVisible('end-screen', true);
         }
@@ -177,7 +219,7 @@
                     questions.push({
                         num1: i,
                         num2: j,
-                        timeToSolve: null
+                        duration: null
                     });
                 }
             }
@@ -195,17 +237,30 @@
 
             return `${minutesString}:${secondsString}.${millisecondsString}`;
         }
+
+        function durationToColor(duration) {
+            // green:  hsl(120, 100%, 50%) (fastest)
+            // yellow: hsl(60, 100%, 50%)
+            // red:    hsl(0, 100%, 50%)   (slowest)
+
+            duration = Math.max(duration, HEATMAP_MIN_DURATION);
+            duration = Math.min(duration, HEATMAP_MAX_DURATION);
+
+            const range = HEATMAP_MAX_DURATION - HEATMAP_MIN_DURATION;
+            const hue = ((HEATMAP_MAX_DURATION - duration) / range) * 120;
+            return `hsl(${hue}, 100%, 50%)`;
+        }
     </script>
 </head>
 <body onload="init()" onkeyup="handleKeyPress(event)">
     <div id="start-screen" class="screen">
         <div>
             <label for="min">Min</label>
-            <input id="min" type="number" value="1" min="0" max="99"/>
+            <input id="min" type="number" value="1" min="1" max="12"/>
         </div>
         <div>
             <label for="min">Max</label>
-            <input id="max" type="number" value="12" min="0" max="99"/>
+            <input id="max" type="number" value="12" min="1" max="12"/>
         </div>
         <div>
             <button onclick="switchToRunningScreen()">Start</button>
@@ -236,7 +291,51 @@
     </div>
 
     <div id="end-screen" class="screen">
-        <p id="score"></p>
+        <p id="question-count"></p>
+        <p id="total-duration"></p>
+        <p id="fastest-duration"></p>
+        <p id="slowest-duration"></p>
+        <table id="heatmap">
+            <tr>
+                <td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td>
+            </tr>
+            <tr>
+                <td>1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>8</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>9</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>10</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>11</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <tr>
+                <td>12</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+        </table>
     </div>
 </body>
 </html>
