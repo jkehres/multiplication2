@@ -20,7 +20,6 @@
         input {
             font-family: monospace;
             font-size: 36px;
-            width: 70px;
         }
         table, tr, td {
             border: 1px solid black;
@@ -33,6 +32,9 @@
             width: 35px;
             height: 35px;
             text-align: center;
+        }
+        .min-max {
+            width: 70px;
         }
         .num-button {
             /*height: 60px;*/
@@ -66,12 +68,30 @@
         let input = '';
 
         function init() {
+            renderName();
+            renderMin();
+            renderMax();
             renderSeparator();
             setVisible('start-screen', true);
         }
 
         function fixedWidthString(s, width) {
             return s.padStart(width, '\u00A0');
+        }
+
+        function renderName() {
+            const nameElement = document.getElementById('name');
+            nameElement.value = window.localStorage.getItem('prev-name') || '';
+        }
+
+        function renderMin() {
+            const minElement = document.getElementById('min');
+            minElement.value = window.localStorage.getItem('prev-min') || '1';
+        }
+
+        function renderMax() {
+            const maxElement = document.getElementById('max');
+            maxElement.value = window.localStorage.getItem('prev-max') || '12';
         }
 
         function renderSeparator() {
@@ -96,29 +116,44 @@
             element.textContent = `Questions: ${questions.length}`;
         }
 
-        function renderTotalDuration() {
+        function renderTotalDuration(prevQuestions) {
             const element = document.getElementById('total-duration');
             const totalDuration = questions.reduce((total, q) => total + q.duration, 0);
-            element.textContent = `Total: ${formatDuration(totalDuration)}`;
+            const prevTotalDuration =
+                prevQuestions.reduce((total, q) => total + q.duration, 0) || totalDuration;
+            const delta = totalDuration - prevTotalDuration;
+            element.textContent = `Total: ${formatDuration(totalDuration)}${formatDeltaSuffix(delta)}`;
         }
 
-        function renderFastestDuration() {
+        function renderFastestDuration(prevQuestions) {
             const element = document.getElementById('fastest-duration');
             const minDuration = questions.reduce((min, q) => Math.min(min, q.duration), Number.MAX_VALUE);
-            element.textContent = `Fastest: ${formatDuration(minDuration)}`;
+            const prevMinDuration =
+                prevQuestions.reduce((min, q) => Math.min(min, q.duration), Number.MAX_VALUE) || minDuration;
+            const delta = minDuration - prevMinDuration;
+            element.textContent = `Fastest: ${formatDuration(minDuration)}${formatDeltaSuffix(delta)}`;
         }
 
-        function renderSlowestDuration() {
+        function renderSlowestDuration(prevQuestions) {
             const element = document.getElementById('slowest-duration');
             const maxDuration = questions.reduce((max, q) => Math.max(max, q.duration), 0);
-            element.textContent = `Slowest: ${formatDuration(maxDuration)}`;
+            const prevMaxDuration =
+                prevQuestions.reduce((max, q) => Math.max(max, q.duration), 0) || maxDuration;
+            const delta = maxDuration - prevMaxDuration;
+            element.textContent = `Slowest: ${formatDuration(maxDuration)}${formatDeltaSuffix(delta)}`;
         }
 
-        function renderHeatmap() {
+        function renderHeatmap(prevQuestions) {
             const tableElement = document.getElementById('heatmap');
             questions.forEach(q => {
                 const cellElement = tableElement.rows[q.num1].cells[q.num2];
                 cellElement.style.backgroundColor = durationToColor(q.duration);
+
+                const prevQuestion = prevQuestions.find(pq => q.num1 === pq.num1 && q.num2 === pq.num2 );
+                if (prevQuestion && q.duration !== prevQuestion.duration) {
+                    const direction = q.duration < prevQuestion.duration ? '-' : '+';
+                    cellElement.textContent = direction;
+                }
             });
         }
 
@@ -182,12 +217,22 @@
         function switchToRunningScreen() {
             const minElement = document.getElementById('min');
             const maxElement = document.getElementById('max');
-            if (min.value > max.value) {
+            if (minElement.value > maxElement.value) {
                 alert('ERROR: Min value > max value')
                 return;
             }
 
-            generateQuestions(min.value, max.value);
+            const nameElement = document.getElementById('name');
+            if (nameElement.value === '') {
+                alert('ERROR: Name is empty')
+                return;
+            }
+
+            window.localStorage.setItem('prev-name', nameElement.value);
+            window.localStorage.setItem('prev-min', minElement.value.toString());
+            window.localStorage.setItem('prev-max', maxElement.value.toString());
+
+            generateQuestions(minElement.value, maxElement.value);
             next();
 
             setVisible('start-screen', false);
@@ -196,13 +241,18 @@
 
         function switchToEndScreen() {
             questionIndex = -1;
-            console.log(JSON.stringify(questions));
+
+            const nameElement = document.getElementById('name');
+            const prevQuestionsKey = `prev-questions-${nameElement.value}`;
+
+            const prevQuestions = JSON.parse(window.localStorage.getItem(prevQuestionsKey) || '[]');
+            window.localStorage.setItem(prevQuestionsKey, JSON.stringify(questions));
 
             renderQuestionCount();
-            renderTotalDuration();
-            renderFastestDuration();
-            renderSlowestDuration()
-            renderHeatmap();
+            renderTotalDuration(prevQuestions);
+            renderFastestDuration(prevQuestions);
+            renderSlowestDuration(prevQuestions)
+            renderHeatmap(prevQuestions);
 
             setVisible('running-screen', false);
             setVisible('end-screen', true);
@@ -244,6 +294,16 @@
             return `${minutesString}:${secondsString}.${millisecondsString}`;
         }
 
+        function formatDeltaSuffix(delta) {
+            if (delta === 0) {
+                return '';
+            } else if (delta > 0) {
+                return ` (+${formatDuration(delta)})`;
+            } else if (delta < 0) {
+                return ` (-${formatDuration(-delta)})`;
+            }
+        }
+
         function durationToColor(duration) {
             // green:  hsl(120, 100%, 50%) (fastest)
             // yellow: hsl(60, 100%, 50%)
@@ -261,12 +321,16 @@
 <body onload="init()" onkeyup="handleKeyPress(event)">
     <div id="start-screen" class="screen">
         <div>
-            <label for="min">Min</label>
-            <input id="min" type="number" value="1" min="1" max="12"/>
+            <label for="name">Name</label>
+            <input id="name" type="text"/>
         </div>
         <div>
-            <label for="min">Max</label>
-            <input id="max" type="number" value="12" min="1" max="12"/>
+            <label for="min">Min&nbsp;</label>
+            <input id="min" class="min-max" type="number" min="1" max="12"/>
+        </div>
+        <div>
+            <label for="min">Max&nbsp;</label>
+            <input id="max" class="min-max" type="number" min="1" max="12"/>
         </div>
         <div>
             <button onclick="switchToRunningScreen()">Start</button>
